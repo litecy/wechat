@@ -24,7 +24,7 @@ const (
 	// TODO 获取授权方选项信息
 	// getComponentConfigURL = "https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_option?component_access_token=%s"
 	// TODO 获取已授权的账号信息
-	// getuthorizerListURL = "POST https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_list?component_access_token=%s"
+	getAuthorizerListURL = "https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_list?component_access_token=%s"
 )
 
 // ComponentAccessToken 第三方平台
@@ -326,6 +326,19 @@ type CategoriesInfo struct {
 	Second string `wx:"second"`
 }
 
+// AuthorizerListItem 已授权账号列表项
+type AuthorizerListItem struct {
+	AuthorizerAppid string `json:"authorizer_appid"`
+	RefreshToken    string `json:"refresh_token"`
+	AuthTime        int64  `json:"auth_time"`
+}
+
+// AuthorizerListResponse 已授权账号列表响应
+type AuthorizerListResponse struct {
+	TotalCount int                  `json:"total_count"`
+	List       []AuthorizerListItem `json:"list"`
+}
+
 // GetAuthrInfoContext 获取授权方的帐号基本信息
 func (ctx *Context) GetAuthrInfoContext(stdCtx context.Context, appid string) (*AuthorizerInfo, *AuthBaseInfo, error) {
 	cat, err := ctx.GetComponentAccessTokenContext(stdCtx)
@@ -358,4 +371,42 @@ func (ctx *Context) GetAuthrInfoContext(stdCtx context.Context, appid string) (*
 // GetAuthrInfo 获取授权方的帐号基本信息
 func (ctx *Context) GetAuthrInfo(appid string) (*AuthorizerInfo, *AuthBaseInfo, error) {
 	return ctx.GetAuthrInfoContext(context.Background(), appid)
+}
+
+// GetAuthorizerListContext 获取已授权的账号列表
+func (ctx *Context) GetAuthorizerListContext(stdCtx context.Context, offset, count int) (*AuthorizerListResponse, error) {
+	cat, err := ctx.GetComponentAccessTokenContext(stdCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	req := map[string]interface{}{
+		"component_appid": ctx.AppID,
+		"offset":          offset,
+		"count":           count,
+	}
+
+	uri := fmt.Sprintf(getAuthorizerListURL, cat)
+	body, err := util.PostJSONContext(stdCtx, uri, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret struct {
+		util.CommonError
+		AuthorizerListResponse
+	}
+	if err := json.Unmarshal(body, &ret); err != nil {
+		return nil, err
+	}
+	if ret.ErrCode != 0 {
+		return nil, fmt.Errorf("GetAuthorizerList error: errcode=%v, errmsg=%v", ret.ErrCode, ret.ErrMsg)
+	}
+
+	return &ret.AuthorizerListResponse, nil
+}
+
+// GetAuthorizerList 获取已授权的账号列表
+func (ctx *Context) GetAuthorizerList(offset, count int) (*AuthorizerListResponse, error) {
+	return ctx.GetAuthorizerListContext(context.Background(), offset, count)
 }
