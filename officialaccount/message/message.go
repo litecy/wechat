@@ -17,6 +17,8 @@ type EventType string
 type InfoType string
 
 const (
+	MsgTypeNoop = "__noop__"
+
 	// MsgTypeText 表示文本消息
 	MsgTypeText MsgType = "text"
 	// MsgTypeImage 表示图片消息

@@ -235,6 +235,7 @@ func (srv *Server) buildResponse(reply *message.Reply) (err error) {
 	}
 	msgType := reply.MsgType
 	switch msgType {
+	case message.MsgTypeNoop:
 	case message.MsgTypeText:
 	case message.MsgTypeImage:
 	case message.MsgTypeVoice:
@@ -245,6 +246,11 @@ func (srv *Server) buildResponse(reply *message.Reply) (err error) {
 	default:
 		err = message.ErrUnsupportReply
 		return
+	}
+
+	if msgType == message.MsgTypeNoop {
+		srv.String("success")
+		return nil
 	}
 
 	msgData := reply.MsgData
