@@ -335,10 +335,6 @@ func (srv *Server) buildRawResponse(reply []byte) (err error) {
 	return
 }
 
-func (srv *Server) BuildResponseExport(reply *message.Reply) ([]byte, error) {
-
-}
-
 func (srv *Server) buildResponse(reply *message.Reply) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
