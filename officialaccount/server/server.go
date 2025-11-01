@@ -21,6 +21,8 @@ import (
 	"github.com/silenceper/wechat/v2/util"
 )
 
+type RawMessageHandler func(stdcontext.Context, *http.Request, []byte) ([]byte, error)
+
 // Server struct
 type Server struct {
 	*context.Context
@@ -30,6 +32,9 @@ type Server struct {
 	skipValidate bool
 
 	openID string
+
+	// 当存在 rawMessageHandler 时， 优先按照 rawMessageHandler 处理请求，否则按照 messageHandler 处理请求
+	rawMessageHandler RawMessageHandler
 
 	messageHandler func(stdcontext.Context, *message.MixMessage) *message.Reply
 
@@ -70,20 +75,38 @@ func (srv *Server) Serve() error {
 		return nil
 	}
 
-	response, err := srv.handleRequest()
-	if err != nil {
-		return err
-	}
-	// 非安全模式下，请求处理方法返回为 nil 则直接回复 success 给微信服务器
-	if response == nil && !srv.isSafeMode {
-		srv.String("success")
-		return nil
-	}
+	if srv.rawMessageHandler != nil {
+		response, err := srv.handleRawRequest()
+		if err != nil {
+			return err
+		}
+		// 非安全模式下，请求处理方法返回为 nil 则直接回复 success 给微信服务器
+		if response == nil && !srv.isSafeMode {
+			srv.String("success")
+			return nil
+		}
 
-	// debug print request msg
-	log.Debugf("request msg =%s", string(srv.RequestRawXMLMsg))
+		// debug print request msg
+		log.Debugf("request msg =%s", string(srv.RequestRawXMLMsg))
 
-	return srv.buildResponse(response)
+		return srv.buildRawResponse(response)
+	} else {
+		response, err := srv.handleRequest()
+		if err != nil {
+			return err
+		}
+		// 非安全模式下，请求处理方法返回为 nil 则直接回复 success 给微信服务器
+		if response == nil && !srv.isSafeMode {
+			srv.String("success")
+			return nil
+		}
+
+		// debug print request msg
+		log.Debugf("request msg =%s", string(srv.RequestRawXMLMsg))
+
+		return srv.buildResponse(response)
+	}
+	return nil
 }
 
 // Validate 校验请求是否合法
@@ -96,6 +119,30 @@ func (srv *Server) Validate() bool {
 	signature := srv.Query("signature")
 	log.Debugf("validate signature, timestamp=%s, nonce=%s", timestamp, nonce)
 	return signature == util.Signature(srv.Token, timestamp, nonce)
+}
+
+func (srv *Server) handleRawRequest() (reply []byte, err error) {
+	// set isSafeMode
+	srv.isSafeMode = false
+	encryptType := srv.Query("encrypt_type")
+	if encryptType == "aes" {
+		srv.isSafeMode = true
+	}
+
+	// set request contentType
+	contentType := srv.Request.Header.Get("Content-Type")
+	srv.isJSONContent = strings.Contains(contentType, "application/json")
+
+	// set openID
+	srv.openID = srv.Query("openid")
+
+	_, err = srv.getRawMessage()
+	if err != nil {
+		return
+	}
+
+	reply, err = srv.rawMessageHandler(srv.Request.Context(), srv.Request, srv.RequestRawXMLMsg)
+	return
 }
 
 // HandleRequest 处理微信的请求
@@ -174,6 +221,46 @@ func (srv *Server) getMessage() (interface{}, error) {
 	return srv.parseRequestMessage(rawXMLMsgBytes)
 }
 
+// getMessage 解析微信返回的消息
+func (srv *Server) getRawMessage() (interface{}, error) {
+	var rawXMLMsgBytes []byte
+	var err error
+	if srv.isSafeMode {
+		encryptedXMLMsg, dataErr := srv.getEncryptBody()
+		if dataErr != nil {
+			return nil, dataErr
+		}
+
+		// 验证消息签名
+		timestamp := srv.Query("timestamp")
+		srv.timestamp, err = strconv.ParseInt(timestamp, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		nonce := srv.Query("nonce")
+		srv.nonce = nonce
+		msgSignature := srv.Query("msg_signature")
+		msgSignatureGen := util.Signature(srv.Token, timestamp, nonce, encryptedXMLMsg.EncryptedMsg)
+		if msgSignature != msgSignatureGen {
+			return nil, fmt.Errorf("消息不合法，验证签名失败")
+		}
+
+		// 解密
+		srv.random, rawXMLMsgBytes, err = util.DecryptMsg(srv.AppID, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
+		if err != nil {
+			return nil, fmt.Errorf("消息解密失败, err=%v", err)
+		}
+	} else {
+		rawXMLMsgBytes, err = io.ReadAll(srv.Request.Body)
+		if err != nil {
+			return nil, fmt.Errorf("从body中解析xml失败, err=%v", err)
+		}
+	}
+
+	srv.RequestRawXMLMsg = rawXMLMsgBytes
+	return nil, nil
+}
+
 func (srv *Server) getEncryptBody() (*message.EncryptedXMLMsg, error) {
 	var encryptedXMLMsg = &message.EncryptedXMLMsg{}
 	if srv.isJSONContent {
@@ -222,6 +309,34 @@ func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixM
 // SetMessageHandler 设置用户自定义的回调方法
 func (srv *Server) SetMessageHandler(handler func(stdcontext.Context, *message.MixMessage) *message.Reply) {
 	srv.messageHandler = handler
+}
+
+func (srv *Server) SetRawMessageHandler(handler RawMessageHandler) {
+	srv.rawMessageHandler = handler
+}
+
+func (srv *Server) buildRawResponse(reply []byte) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("panic error: %v\n%s", e, debug.Stack())
+		}
+	}()
+	if reply == nil {
+		// do nothing
+		return nil
+	}
+
+	if string(reply) == "success" {
+		srv.String("success")
+		return nil
+	}
+
+	srv.ResponseRawXMLMsg = reply
+	return
+}
+
+func (srv *Server) BuildResponseExport(reply *message.Reply) ([]byte, error) {
+
 }
 
 func (srv *Server) buildResponse(reply *message.Reply) (err error) {
