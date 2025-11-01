@@ -1,6 +1,7 @@
 package server
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -30,7 +31,7 @@ type Server struct {
 
 	openID string
 
-	messageHandler func(*message.MixMessage) *message.Reply
+	messageHandler func(stdcontext.Context, *message.MixMessage) *message.Reply
 
 	RequestRawXMLMsg  []byte
 	RequestMsg        *message.MixMessage
@@ -123,7 +124,7 @@ func (srv *Server) handleRequest() (reply *message.Reply, err error) {
 		err = errors.New("消息类型转换失败")
 	}
 	srv.RequestMsg = mixMessage
-	reply = srv.messageHandler(mixMessage)
+	reply = srv.messageHandler(srv.Request.Context(), mixMessage)
 	return
 }
 
@@ -219,7 +220,7 @@ func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixM
 }
 
 // SetMessageHandler 设置用户自定义的回调方法
-func (srv *Server) SetMessageHandler(handler func(*message.MixMessage) *message.Reply) {
+func (srv *Server) SetMessageHandler(handler func(stdcontext.Context, *message.MixMessage) *message.Reply) {
 	srv.messageHandler = handler
 }
 
