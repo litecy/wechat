@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/silenceper/wechat/v2/cache"
+	"github.com/silenceper/wechat/v2/credential"
 	"github.com/silenceper/wechat/v2/util"
 )
 
@@ -34,14 +35,24 @@ type ComponentAccessToken struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
-// GetComponentAccessTokenContext 获取 ComponentAccessToken
-func (ctx *Context) GetComponentAccessTokenContext(stdCtx context.Context) (string, error) {
+func (ctx *Context) getComponentAccessTokenImpl(stdCtx context.Context) (string, error) {
 	accessTokenCacheKey := fmt.Sprintf("component_access_token_%s", ctx.AppID)
 	val := cache.GetContext(stdCtx, ctx.Cache, accessTokenCacheKey)
 	if val == nil {
 		return "", fmt.Errorf("cann't get component access token")
 	}
 	return val.(string), nil
+}
+
+// GetComponentAccessTokenContext 获取 ComponentAccessToken
+func (ctx *Context) GetComponentAccessTokenContext(stdCtx context.Context) (string, error) {
+	if ctx.AccessTokenHandle == nil {
+		return ctx.getComponentAccessTokenImpl(stdCtx)
+	}
+	if c, ok := ctx.AccessTokenHandle.(credential.AccessTokenContextHandle); ok {
+		return c.GetAccessTokenContext(stdCtx)
+	}
+	return ctx.AccessTokenHandle.GetAccessToken()
 }
 
 // GetComponentAccessToken 获取 ComponentAccessToken

@@ -3,6 +3,7 @@ package openplatform
 import (
 	"net/http"
 
+	"github.com/silenceper/wechat/v2/credential"
 	"github.com/silenceper/wechat/v2/officialaccount/server"
 	"github.com/silenceper/wechat/v2/openplatform/account"
 	"github.com/silenceper/wechat/v2/openplatform/config"
@@ -44,4 +45,9 @@ func (openPlatform *OpenPlatform) GetMiniProgram(appID string) *miniprogram.Mini
 // TODO
 func (openPlatform *OpenPlatform) GetAccountManager() *account.Account {
 	return account.NewAccount(openPlatform.Context)
+}
+
+// SetAccessTokenHandle 自定义access_token获取方式
+func (openPlatform *OpenPlatform) SetAccessTokenHandle(accessTokenHandle credential.AccessTokenHandle) {
+	openPlatform.AccessTokenHandle = accessTokenHandle
 }
