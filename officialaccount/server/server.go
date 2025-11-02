@@ -393,6 +393,9 @@ func (srv *Server) buildResponse(reply *message.Reply) (err error) {
 
 // Send 将自定义的消息发送
 func (srv *Server) Send() (err error) {
+	if len(srv.ResponseRawXMLMsg) == 0 {
+		return nil
+	}
 	replyMsg := srv.ResponseMsg
 	log.Debugf("response msg =%+v", replyMsg)
 	if srv.isSafeMode {
