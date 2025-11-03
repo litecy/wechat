@@ -12,6 +12,21 @@ const (
 	sendURL = "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s"
 )
 
+// EncryptedXMLMsg 安全模式下的消息体
+type EncryptedXMLMsg struct {
+	XMLName      struct{} `xml:"xml" json:"-"`
+	ToUserName   string   `xml:"ToUserName" json:"ToUserName"` // 企业微信的CorpID，当为第三方套件回调事件时，CorpID的内容为suiteid
+	EncryptedMsg string   `xml:"Encrypt"    json:"Encrypt"`
+	AgentID      string   `xml:"AgentID"    json:"AgentID"` // 接收的应用id，可在应用的设置页面获取
+}
+
+type MixMessage struct {
+	MsgType string `json:"msgtype" xml:"MsgType"` // 消息的类型，此时固定为 event
+}
+
+type Reply struct {
+}
+
 type (
 	// SendRequestCommon 发送应用消息请求公共参数
 	SendRequestCommon struct {
