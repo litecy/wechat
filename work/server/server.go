@@ -124,12 +124,12 @@ func (srv *Server) Validate() bool {
 func (srv *Server) handleRawRequest() (reply []byte, err error) {
 	// set isSafeMode
 	srv.isSafeMode = false
-	encryptType := srv.Query("encrypt_type")
+	// encryptType := srv.Query("encrypt_type")
 	echoStr := srv.Query("echostr")
 	srv.isEcho = echoStr != ""
-	if encryptType == "aes" || srv.isEcho {
-		srv.isSafeMode = true
-	}
+	// if encryptType == "aes" || srv.isEcho {
+	srv.isSafeMode = true
+	// }
 
 	// set request contentType
 	contentType := srv.Request.Header.Get("Content-Type")
@@ -262,10 +262,18 @@ func (srv *Server) getRawMessage() (interface{}, error) {
 			return nil, fmt.Errorf("消息不合法，验证签名失败")
 		}
 
-		// 解密
-		srv.random, rawXMLMsgBytes, err = util.DecryptMsg(srv.CorpID, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
-		if err != nil {
-			return nil, fmt.Errorf("消息解密失败, err=%v", err)
+		if srv.isEcho {
+			// 解密
+			srv.random, rawXMLMsgBytes, err = util.DecryptMsg(srv.CorpID, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
+			if err != nil {
+				return nil, fmt.Errorf("消息解密失败, err=%v", err)
+			}
+		} else {
+			// 解密
+			srv.random, rawXMLMsgBytes, err = util.DecryptMsg(srv.AgentID, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
+			if err != nil {
+				return nil, fmt.Errorf("消息解密失败, err=%v", err)
+			}
 		}
 	} else {
 		rawXMLMsgBytes, err = io.ReadAll(srv.Request.Body)
