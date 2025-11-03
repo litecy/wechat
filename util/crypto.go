@@ -106,6 +106,31 @@ func DecryptMsg(appID, encryptedMsg, aesKey string) (random, rawMsgXMLBytes []by
 	return
 }
 
+// DecryptMsg 消息解密, 不校验APPID
+func DecryptMsgLoose(appID, encryptedMsg, aesKey string) (random, rawMsgXMLBytes []byte, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("panic error: err=%v", e)
+			return
+		}
+	}()
+	var encryptedMsgBytes, key []byte
+	encryptedMsgBytes, err = base64.StdEncoding.DecodeString(encryptedMsg)
+	if err != nil {
+		return
+	}
+	key, err = aesKeyDecode(aesKey)
+	if err != nil {
+		panic(err)
+	}
+	random, rawMsgXMLBytes, _, err = AESDecryptMsg(encryptedMsgBytes, key)
+	if err != nil {
+		err = fmt.Errorf("消息解密失败,%v", err)
+		return
+	}
+	return
+}
+
 func aesKeyDecode(encodedAESKey string) (key []byte, err error) {
 	if len(encodedAESKey) != 43 {
 		err = fmt.Errorf("the length of encodedAESKey must be equal to 43")
