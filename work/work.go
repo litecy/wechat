@@ -108,3 +108,8 @@ func (wk *Work) GetServer(req *http.Request, writer http.ResponseWriter) *server
 	srv.Writer = writer
 	return srv
 }
+
+// SetAccessTokenHandle 自定义access_token获取方式
+func (wk *Work) SetAccessTokenHandle(accessTokenHandle credential.AccessTokenHandle) {
+	wk.ctx.AccessTokenHandle = accessTokenHandle
+}

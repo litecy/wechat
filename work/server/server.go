@@ -206,7 +206,7 @@ func (srv *Server) getMessage() (interface{}, error) {
 		nonce := srv.Query("nonce")
 		srv.nonce = nonce
 		msgSignature := srv.Query("msg_signature")
-		msgSignatureGen := util.Signature(srv.Token, timestamp, nonce, encryptedXMLMsg.EncryptedMsg)
+		msgSignatureGen := util.Signature(srv.Token, timestamp, nonce, encryptedXMLMsg.ToUserName)
 		if msgSignature != msgSignatureGen {
 			return nil, fmt.Errorf("消息不合法，验证签名失败")
 		}

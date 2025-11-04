@@ -24,6 +24,11 @@ const (
 	CacheKeyMiniProgramPrefix = "gowechat_miniprogram_"
 	// CacheKeyWorkPrefix 企业微信cache key前缀
 	CacheKeyWorkPrefix = "gowechat_work_"
+	// CacheKeyWorkPlatformPrefix 企业微信第三方代开发应用模板cache key前缀
+	CacheKeyWorkPlatformPrefix = "gowechat_work_platform_"
+
+	// workPlatformAccessTokenURL 企业微信第三方代开发应用模板获取access_token的接口
+	workPlatformAccessTokenURL = "https://qyapi.weixin.qq.com/cgi-bin/service/get_suite_token"
 )
 
 // DefaultAccessToken 默认AccessToken 获取
@@ -281,5 +286,106 @@ func GetTokenFromServerContext(ctx context.Context, url string) (resAccessToken 
 		err = fmt.Errorf("get access_token error : errcode=%v , errormsg=%v", resAccessToken.ErrCode, resAccessToken.ErrMsg)
 		return
 	}
+	return
+}
+
+// GetTokenFromServerContext 强制从微信服务器获取token
+func GetPlatformTokenFromServerContext(ctx context.Context, url string, suiteId, suiteSecret string, suiteTicket string) (resAccessToken WeworkPlatformResAccessToken, err error) {
+	var body []byte
+	body, err = util.HTTPPostContext(ctx, url, []byte(fmt.Sprintf(`{"suite_id": "%s", "suite_secret": "%s", "suite_ticket": "%s"}`, suiteId, suiteSecret, suiteTicket)), nil)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(body, &resAccessToken)
+	if err != nil {
+		return
+	}
+	if resAccessToken.ErrCode != 0 {
+		err = fmt.Errorf("get access_token error : errcode=%v , errormsg=%v", resAccessToken.ErrCode, resAccessToken.ErrMsg)
+		return
+	}
+	return
+}
+
+// ResAccessToken struct
+type WeworkPlatformResAccessToken struct {
+	util.CommonError
+
+	AccessToken string `json:"suite_access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
+// WorkPlatformAccessToken 企业微信第三方代开发应用模板 AccessToken 获取
+type WorkPlatformAccessToken struct {
+	CorpID            string
+	CorpSecret        string
+	cacheKeyPrefix    string
+	cache             cache.Cache
+	getPlatformTicket func(corpId string) (string, error)
+	accessTokenLock   *sync.Mutex
+}
+
+// NewWorkPlatformAccessToken new WorkPlatformAccessToken (保持向后兼容)
+func NewWorkPlatformAccessToken(
+	corpID,
+	corpSecret,
+	cacheKeyPrefix string,
+	cache cache.Cache, getPlatformTicket func(corpId string) (string, error)) *WorkPlatformAccessToken {
+	// 调用新方法，保持兼容性
+	if cache == nil {
+		panic("cache is needed")
+	}
+	if getPlatformTicket == nil {
+		panic("getPlatformTicket is needed")
+	}
+	return &WorkPlatformAccessToken{
+		CorpID:            corpID,
+		CorpSecret:        corpSecret,
+		cache:             cache,
+		cacheKeyPrefix:    cacheKeyPrefix,
+		getPlatformTicket: getPlatformTicket,
+		accessTokenLock:   new(sync.Mutex),
+	}
+}
+
+// GetAccessToken 企业微信获取access_token,先从cache中获取，没有则从服务端获取
+func (ak *WorkPlatformAccessToken) GetAccessToken() (accessToken string, err error) {
+	return ak.GetAccessTokenContext(context.Background())
+}
+
+// GetAccessTokenContext 企业微信获取access_token,先从cache中获取，没有则从服务端获取
+func (ak *WorkPlatformAccessToken) GetAccessTokenContext(ctx context.Context) (accessToken string, err error) {
+	// 加上lock，是为了防止在并发获取token时，cache刚好失效，导致从微信服务器上获取到不同token
+	ak.accessTokenLock.Lock()
+	defer ak.accessTokenLock.Unlock()
+
+	// 构建缓存key
+	accessTokenCacheKey := fmt.Sprintf("%s_access_token_%s", ak.cacheKeyPrefix, ak.CorpID)
+
+	val := ak.cache.Get(accessTokenCacheKey)
+	if val != nil {
+		accessToken = val.(string)
+		return
+	}
+
+	suiteTicket, err := ak.getPlatformTicket(ak.CorpID)
+	if err != nil {
+		return
+	}
+
+	// cache失效，从微信服务器获取
+	var resAccessToken WeworkPlatformResAccessToken
+	resAccessToken, err = GetPlatformTokenFromServerContext(ctx, workPlatformAccessTokenURL, ak.CorpID, ak.CorpSecret, suiteTicket)
+	if err != nil {
+		return
+	}
+
+	expires := resAccessToken.ExpiresIn - 1500
+	err = ak.cache.Set(accessTokenCacheKey, resAccessToken.AccessToken, time.Duration(expires)*time.Second)
+	if err != nil {
+		return
+	}
+
+	accessToken = resAccessToken.AccessToken
 	return
 }
