@@ -270,7 +270,7 @@ func (srv *Server) getRawMessage() (interface{}, error) {
 			}
 		} else {
 			// 解密
-			srv.random, rawXMLMsgBytes, err = util.DecryptMsg(srv.AgentID, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
+			srv.random, rawXMLMsgBytes, err = util.DecryptMsg(encryptedXMLMsg.ToUserName, encryptedXMLMsg.EncryptedMsg, srv.EncodingAESKey)
 			if err != nil {
 				return nil, fmt.Errorf("消息解密失败, err=%v", err)
 			}

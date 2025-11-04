@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 
 	"github.com/silenceper/wechat/v2/util"
@@ -20,8 +21,55 @@ type EncryptedXMLMsg struct {
 	AgentID      string   `xml:"AgentID"    json:"AgentID"` // 接收的应用id，可在应用的设置页面获取
 }
 
+// CDATA  使用该类型，在序列化为 xml 文本时文本会被解析器忽略
+type CDATA string
+
+// MarshalXML 实现自己的序列化方法
+func (c CDATA) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(struct {
+		string `xml:",cdata"`
+	}{string(c)}, start)
+}
+
+// MsgType 基本消息类型
+type MsgType string
+
+// EventType 事件类型
+type EventType string
+
+// InfoType 第三方平台授权事件类型
+type InfoType string
+
+const (
+	// InfoTypeSuiteTicket 返回 suite_ticket
+	InfoTypeSuiteTicket        InfoType = "suite_ticket"
+	InfoTypeCreateAuth         InfoType = "create_auth"
+	InfoTypeCancelAuth         InfoType = "cancel_auth"
+	InfoTypeChangeAuth         InfoType = "change_auth"
+	InfoTypeResetPermanentCode InfoType = "reset_permanent_code"
+	InfoTypeApproveSpecialAuth InfoType = "approve_special_auth"
+	InfoTypeCancelSpecialAuth  InfoType = "cancel_special_auth"
+)
+
+// CommonToken 消息中通用的结构
+type CommonToken struct {
+	XMLName      xml.Name `xml:"xml"`
+	ToUserName   CDATA    `xml:"ToUserName" json:"ToUserName"`
+	FromUserName CDATA    `xml:"FromUserName" json:"FromUserName"`
+}
+
 type MixMessage struct {
-	MsgType string `json:"msgtype" xml:"MsgType"` // 消息的类型，此时固定为 event
+	MsgType MsgType `xml:"MsgType" json:"MsgType"`
+
+	SuiteId     string   `xml:"SuiteId" json:"SuiteId"`
+	InfoType    InfoType `xml:"InfoType" json:"InfoType"`
+	TimeStamp   int64    `xml:"TimeStamp" json:"TimeStamp"`
+	SuiteTicket string   `xml:"SuiteTicket" json:"SuiteTicket"`
+	AuthCode    string   `xml:"AuthCode" json:"AuthCode"`
+	State       string   `xml:"State" json:"State"`
+	ExtraInfo   string   `xml:"ExtraInfo" json:"ExtraInfo"`
+	AuthCorpId  string   `xml:"AuthCorpId" json:"AuthCorpId"`
+	AuthType    string   `xml:"AuthType" json:"AuthType"`
 }
 
 type Reply struct {
