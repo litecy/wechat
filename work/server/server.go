@@ -19,7 +19,7 @@ import (
 	"github.com/silenceper/wechat/v2/work/message"
 )
 
-type RawMessageHandler func(stdcontext.Context, *http.Request, []byte) ([]byte, error)
+type RawMessageHandler func(stdcontext.Context, *http.Request, string, []byte) ([]byte, error)
 
 // Server struct
 type Server struct {
@@ -30,6 +30,8 @@ type Server struct {
 	skipValidate bool
 
 	openID string
+
+	toUserName string
 
 	// 当存在 rawMessageHandler 时， 优先按照 rawMessageHandler 处理请求，否则按照 messageHandler 处理请求
 	rawMessageHandler RawMessageHandler
@@ -148,7 +150,7 @@ func (srv *Server) handleRawRequest() (reply []byte, err error) {
 		return reply, nil
 	}
 
-	reply, err = srv.rawMessageHandler(srv.Request.Context(), srv.Request, srv.RequestRawXMLMsg)
+	reply, err = srv.rawMessageHandler(srv.Request.Context(), srv.Request, srv.toUserName, srv.RequestRawXMLMsg)
 	return
 }
 
@@ -242,6 +244,7 @@ func (srv *Server) getRawMessage() (interface{}, error) {
 			if dataErr != nil {
 				return nil, dataErr
 			}
+			srv.toUserName = encryptedXMLMsg.ToUserName
 		} else {
 			encryptedXMLMsg = &message.EncryptedXMLMsg{
 				EncryptedMsg: echoStr,

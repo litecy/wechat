@@ -59,8 +59,6 @@ type CommonToken struct {
 }
 
 type MixMessage struct {
-	MsgType MsgType `xml:"MsgType" json:"MsgType"`
-
 	SuiteId     string   `xml:"SuiteId" json:"SuiteId"`
 	InfoType    InfoType `xml:"InfoType" json:"InfoType"`
 	TimeStamp   int64    `xml:"TimeStamp" json:"TimeStamp"`
@@ -70,6 +68,16 @@ type MixMessage struct {
 	ExtraInfo   string   `xml:"ExtraInfo" json:"ExtraInfo"`
 	AuthCorpId  string   `xml:"AuthCorpId" json:"AuthCorpId"`
 	AuthType    string   `xml:"AuthType" json:"AuthType"`
+
+	ToUserName     string `xml:"ToUserName" json:"to_user_name"`
+	FromUserName   string `xml:"FromUserName" json:"from_user_name"`
+	CreateTime     int64  `xml:"CreateTime" json:"create_time"`
+	MsgType        string `xml:"MsgType" json:"msg_type"`
+	Event          string `xml:"Event" json:"event"`
+	ChangeType     string `xml:"ChangeType" json:"change_type"`
+	UserID         string `xml:"UserID" json:"user_id"`
+	ExternalUserID string `xml:"ExternalUserID" json:"external_user_id"`
+	WelcomeCode    string `xml:"WelcomeCode" json:"welcome_code"`
 }
 
 type Reply struct {
