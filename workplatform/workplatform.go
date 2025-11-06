@@ -45,7 +45,7 @@ func (workPlatform *WorkPlatform) GetServer(req *http.Request, writer http.Respo
 
 // GetWork 企业微信
 func (workPlatform *WorkPlatform) GetWork(appID string) *work.Work {
-	return work.NewWork(workPlatform.Context, "authorizerCorpId", "authorizerAgentId")
+	return work.NewWork(workPlatform.Context, appID, "")
 }
 
 // GetBasic platform 基础功能

@@ -18,6 +18,8 @@ import (
 	"github.com/silenceper/wechat/v2/util"
 	"github.com/silenceper/wechat/v2/work"
 	workConfig "github.com/silenceper/wechat/v2/work/config"
+	"github.com/silenceper/wechat/v2/workplatform"
+	workplatformConfig "github.com/silenceper/wechat/v2/workplatform/config"
 )
 
 func init() {
@@ -74,6 +76,13 @@ func (wc *Wechat) GetOpenPlatform(cfg *openConfig.Config) *openplatform.OpenPlat
 		cfg.Cache = wc.cache
 	}
 	return openplatform.NewOpenPlatform(cfg)
+}
+
+func (wc *Wechat) GetWorkPlatform(cfg *workplatformConfig.Config) *workplatform.WorkPlatform {
+	if cfg.Cache == nil {
+		cfg.Cache = wc.cache
+	}
+	return workplatform.NewWorkPlatform(cfg)
 }
 
 // GetWork 获取企业微信的实例
